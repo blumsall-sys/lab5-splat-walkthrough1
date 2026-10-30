@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Lab5 - Splat Walkthrough Exporter",
     "author": "Lab5 / Barrett Creek Multimedia",
-    "version": (1, 0, 0),
+    "version": (1, 1, 0),
     "blender": (4, 2, 0),
     "location": "3D View > Sidebar > Lab5 Walkthrough",
     "description": "Export depth geometry, static collision and annotation JSON to a GitHub Pages PlayCanvas project",
@@ -13,7 +13,7 @@ import json
 import shutil
 from pathlib import Path
 from mathutils import Vector
-from bpy.props import StringProperty, FloatVectorProperty, PointerProperty
+from bpy.props import StringProperty, FloatVectorProperty, PointerProperty, FloatProperty, EnumProperty
 
 PREFIX_BOTH = "PCW_BOTH_"
 PREFIX_COLLISION = "PCW_COLLIDER_"
@@ -76,7 +76,9 @@ class PCW_OT_add_note(bpy.types.Operator):
         bpy.ops.object.empty_add(type='SPHERE', location=context.scene.cursor.location)
         obj = context.object
         obj.name = PREFIX_NOTE + "New"
-        obj.empty_display_size = 0.25
+        obj.empty_display_size = 3.0
+        obj.pcw_radius = 3.0
+        obj.pcw_mode = 'auto'
         obj.pcw_title = "New annotation"
         obj.pcw_text = "Edit this text under the Lab5 panel."
         return {'FINISHED'}
@@ -211,7 +213,9 @@ class PCW_OT_export(bpy.types.Operator):
                 'id': f'blender-{len(notes) + 1}',
                 'position': as_web_pos(obj.matrix_world.translation),
                 'title': obj.pcw_title or obj.name[len(PREFIX_NOTE):],
-                'text': obj.pcw_text
+                'text': obj.pcw_text,
+                'radius': round(float(obj.pcw_radius), 3),
+                'mode': obj.pcw_mode
             })
         (asset_dir / 'annotations.json').write_text(json.dumps(notes, indent=2) + '\n', encoding='utf-8')
         config['annotationsUrl'] = './assets/annotations.json'
@@ -253,6 +257,8 @@ class PCW_PT_panel(bpy.types.Panel):
         if active and active.name.startswith(PREFIX_NOTE):
             layout.prop(active, 'pcw_title')
             layout.prop(active, 'pcw_text')
+            layout.prop(active, 'pcw_radius')
+            layout.prop(active, 'pcw_mode')
         layout.separator()
         layout.label(text="3. Export to Github project")
         layout.prop(props, 'output_dir')
@@ -272,15 +278,30 @@ CLASSES = (PCW_OT_add_floor, PCW_OT_add_wall, PCW_OT_add_depth,
            PCW_OT_add_note, PCW_OT_add_spawn, PCW_OT_export, PCW_Settings, PCW_PT_panel)
 
 
+def _update_trigger_radius(self, _context):
+    if self.type == 'EMPTY' and self.name.startswith(PREFIX_NOTE):
+        self.empty_display_size = self.pcw_radius
+
+
 def register():
     for cls in CLASSES:
         bpy.utils.register_class(cls)
     bpy.types.Scene.pcw_settings = PointerProperty(type=PCW_Settings)
     bpy.types.Object.pcw_title = StringProperty(name="Annotation title", default="New annotation")
     bpy.types.Object.pcw_text = StringProperty(name="Annotation body", default="Describe this feature")
+    bpy.types.Object.pcw_radius = FloatProperty(
+        name="Trigger radius (m)", default=3.0, min=0.75, max=30.0,
+        description="Invisible spherical interaction zone in world units",
+        update=_update_trigger_radius)
+    bpy.types.Object.pcw_mode = EnumProperty(
+        name="Activation mode",
+        items=[('auto','Auto-popup','Opens when player enters trigger'),
+               ('interact','Press E / F','Requires first-person interaction')])
 
 
 def unregister():
+    del bpy.types.Object.pcw_mode
+    del bpy.types.Object.pcw_radius
     del bpy.types.Object.pcw_text
     del bpy.types.Object.pcw_title
     del bpy.types.Scene.pcw_settings

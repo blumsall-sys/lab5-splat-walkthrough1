@@ -114,3 +114,48 @@ See [`GITHUB_FIRST_DEPLOY.md`](GITHUB_FIRST_DEPLOY.md) for the exact connected G
 ## Deployment repository
 
 This test project is published in **https://github.com/blumsall-sys/lab5-splat-walkthrough1**. When GitHub Pages is configured to deploy `main` `/ (root)`, the target site is **https://blumsall-sys.github.io/lab5-splat-walkthrough1/**. The public Sunnyvale SOG and GLB are loaded externally until you replace the asset paths in `assets/scene-config.json`.
+
+## October 30, 2026 — Native Gaussian depth and first-person annotation triggers
+
+The latest version uses the PlayCanvas native splat scene-depth pipeline on compatible
+WebGL2/WebGPU devices: `CameraFrame.isSplatSceneDepthSupported(device)`,
+`app.scene.gsplat.sceneDepthWrite = true`, `rendering.samples = 1`, and
+`rendering.sceneDepthMap = false`. Native splat depth captures trees, walls,
+buildings and the floor instead of relying on a floor-heavy triangle proxy.
+On unsupported devices, the existing depth-only GLB serves as a fallback.
+
+The Depth Debug checkbox displays the composed scene depth buffer; if a tree is
+missing in this view on a fallback device, that device needs a more complete
+proxy mesh for equivalent blur. You can disable blur if it is undesirable;
+no collision mesh is needed to generate native splat scene depth.
+
+Automatic focus uses the PlayCanvas GPU splat Picker, sampled at the reticle
+approximately every 350 ms, with physics-based fallback. Focus is smoothed.
+
+### Game-like annotation system
+
+The new `world-annotations.js` creates invisible spherical, collision-only
+PlayCanvas entities (true trigger zones, with triggerenter / triggerleave events).
+A spatial distance check handles spawning inside a trigger and missed updates.
+The marker is visual only; it does not intercept pointer-lock or mouse input.
+
+- `radius`: world-unit distance for entering the annotation zone; default 3.
+- `mode`: `"auto"` automatically opens the popup on approach; `"interact"`
+  shows a prompt and opens on **E** / **F**, controller X (button 2) or touch.
+- Both modes permit E/F to toggle the card while the pointer remains locked.
+- Walk out of a zone to dismiss the card.
+- Use the Annotations panel to add/edit the trigger settings, then export JSON.
+- Blender add-on v1.1 includes a radius property that resizes the spherical Empty
+  guide, and an activation-mode property exported to the same annotation JSON.
+
+The annotation locations must share the same world coordinate space as the
+rendered splat and player; custom exported scenes may require repositioning.
+The first Sunnyvale sample marker has a 2.75 m activation sphere.
+
+**Troubleshooting**: Settings > Show scene depth should show grayscale/encoded
+depth for the whole scan on supported devices. Download diagnostics to confirm
+`nativeSplatDepth: true`. When false, use a more complete depth proxy in Blender.
+
+**Test**: From the sample spawn, move toward the numbered marker until the
+interaction prompt appears. In automatic mode the popup opens in-world.
+Press E without releasing pointer lock to close, and press E again to reopen.

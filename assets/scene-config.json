@@ -79,7 +79,7 @@
     "enabled": true,
     "autofocus": true,
     "focusDistance": 5,
-    "blurRadius": 5,
+    "blurRadius": 3,
     "blurRings": 4,
     "blurRingPoints": 5
   },

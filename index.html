@@ -24,7 +24,9 @@
   </div>
   <div id="status" role="status" aria-live="polite">Starting PlayCanvas…</div>
   <div id="crosshair" aria-hidden="true"></div>
-  <div id="hotspots" aria-label="Scene annotations"></div>
+  <div id="hotspots" aria-label="Non-interactive world annotation markers"></div>
+  <div id="interaction-prompt" role="status" aria-live="polite" hidden></div>
+  <button id="interact-btn" type="button" aria-label="Interact with nearby annotation" hidden>Interact</button>
   <div id="tooltip" hidden><div class="tooltip-heading"><strong id="tooltip-title"></strong><button type="button" id="tooltip-close" aria-label="Close">×</button></div><p id="tooltip-text"></p></div>
   <div id="bottom-hint">CLICK SCENE TO LOOK AROUND · WASD MOVE · SPACE JUMP · SHIFT SPRINT · ESC RELEASE MOUSE</div>
   <div class="shade" id="shade" hidden></div>
@@ -39,27 +41,34 @@
       <label class="check"><input type="checkbox" id="auto-focus" checked> Autofocus (centre reticle)</label>
       <label>Focus distance <output id="focus-value">5.0 m</output><input type="range" id="focus-distance" min="0.5" max="40" step="0.1" value="5"></label>
       <label>Blur radius <output id="blur-value">5</output><input type="range" id="blur-radius" min="0" max="12" step="1" value="5"></label>
-      <label class="check"><input type="checkbox" id="proxy-debug"> Show depth proxy (debug)</label>
+      <label class="check"><input type="checkbox" id="proxy-debug"> Show scene depth (debug)</label>
       <hr>
       <button type="button" id="reset-player" class="secondary">Return to start</button>
       <button type="button" id="download-diagnostics" class="secondary">Download test diagnostics</button>
-      <p class="help-text">A depth proxy is required for accurate depth of field. After loading an unrelated splat, disable DoF until you supply its matching proxy mesh.</p>
+      <p class="help-text">On supported GPUs, native Gaussian-splat scene depth includes buildings, trees and the ground. Other GPUs fall back to the hidden GLB depth proxy. Toggle Show scene depth to inspect exactly what the focus effect sees. Local splat previews disable DoF until the collision/depth matches the new scene.</p>
     </section>
     <section id="notes-panel" hidden>
-      <p class="help-text">Annotations are editable in-browser. Use “Place annotation” to position a hotspot straight ahead at the nearest collision hit. Download JSON after editing and copy it to <code>assets/annotations.json</code> before publishing.</p>
+      <p class="help-text">Annotations are invisible 3D sphere triggers, not clickable UI. Approach the marker to trigger a world-space popup, or choose Interact to require E/F or a gamepad/touch action. Use Place annotation to anchor a trigger to the nearest collider, then export JSON to <code>assets/annotations.json</code>.</p>
       <button type="button" id="place-note">Place annotation at crosshair</button>
       <div id="note-editor" hidden>
         <label>Title <input id="note-title" type="text" maxlength="90"></label>
         <label>Description <textarea id="note-text" rows="4" maxlength="1600"></textarea></label>
+        <label>Trigger radius (metres) <input type="number" id="note-radius" min="0.75" max="30" step="0.25" value="3"></label>
+        <label>Activation mode
+          <select id="note-mode">
+            <option value="auto">Auto-popup when entering trigger</option>
+            <option value="interact">Press E / F to interact</option>
+          </select>
+        </label>
         <div class="button-row"><button id="save-note" type="button">Save</button><button id="delete-note" type="button" class="danger">Delete</button></div>
       </div>
       <div id="notes-list"></div>
       <button id="export-notes" type="button" class="secondary">Download annotations.json</button>
     </section>
     <section id="help-panel" hidden>
-      <h3>Desktop</h3><p>Click the 3D scene to lock the mouse. WASD walks, mouse looks, Shift sprints, Space jumps, and Esc unlocks the pointer. Click a hotspot to read it.</p>
-      <h3>Mobile</h3><p>Use the two on-screen touch zones: left side to move, right side to look. Tap a hotspot to open its description. Mobile input comes from PlayCanvas's first-person controller.</p>
-      <h3>Authoring</h3><p>Export your SuperSplat to SOG. For accurate collision and autofocus, create matching proxy / collider GLBs in Blender with the included addon.</p>
+      <h3>Desktop</h3><p>Click the 3D scene to lock the mouse. WASD moves, mouse looks, Shift sprints, Space jumps. Walk inside an annotation's invisible sphere. Automatic annotations open on approach; manual ones show an E/F interact prompt. E/F can also close an annotation without unlocking the mouse. Esc unlocks the pointer.</p>
+      <h3>Mobile</h3><p>Use the two on-screen touch zones: left to move, right to look. Enter a trigger sphere and tap the Interact button to open/close the popup. Gamepad X (button 2) also interacts. You no longer need to click an annotation hotspot.</p>
+      <h3>Authoring</h3><p>Export SuperSplat to SOG. The splat itself supplies full-scene DoF depth on supported devices. Make a separate static collision GLB for walking, and optionally a depth-only proxy for device fallback. The Blender add-on exports sphere trigger radii and activation modes.</p>
       <p class="help-text">The default scene uses Sunnyvale Heritage Park Museum by zeitgeistarchivescans (CC BY 4.0). The sample splat and geometry load from PlayCanvas servers until you replace them. <a href="https://superspl.at/scene/d5d397aa" target="_blank" rel="noreferrer">Sample source and attribution</a>.</p>
     </section>
   </aside>
