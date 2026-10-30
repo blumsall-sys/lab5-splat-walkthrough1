@@ -1,0 +1,16 @@
+name: Validate walkthrough
+on: [push, pull_request]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python scripts/check_project.py
+      - run: node --check main.js
+      - run: python -m py_compile blender-addon/lab5_splat_walkthrough_exporter.py
