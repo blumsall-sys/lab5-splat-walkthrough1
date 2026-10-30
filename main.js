@@ -1,11 +1,14 @@
 // Lab5 Splat Walkthrough. PlayCanvas 2.23.3. Static GitHub Pages application.
 import * as pc from 'playcanvas';
 import { FirstPersonController } from 'playcanvas/scripts/esm/first-person-controller.mjs';
+import { createWorldAnnotations } from './world-annotations.js';
 
 const el = id => document.getElementById(id);
 const canvas = el('application-canvas');
 const state = {app:null, camera:null, player:null, splat:null, splatAsset:null, frame:null,
-  depthParts:[], annotations:[], selected:null, config:null, physics:false};
+  depthParts:[], annotations:[], selected:null, config:null, physics:false,
+  nativeSplatDepth:false,picker:null,focusPending:false,focusTick:0,targetFocus:5,
+  lastFocusPick:0,previewSplat:false};
 const buttons = new Map();
 function report(message, level='info') {
   const item=el('status'); item.textContent=message; item.className=level==='info'?'':level;
@@ -39,7 +42,7 @@ function applyDOF(){
   syncSettings();
   if(!state.frame)return;
   const dof=state.frame.dof;
-  dof.enabled=el('dof-on').checked&&state.depthParts.length>0;
+  dof.enabled=el('dof-on').checked&&!state.previewSplat&&(state.nativeSplatDepth||state.depthParts.length>0);
   dof.blurRadius=Number(el('blur-radius').value);
   dof.focusDistance=Number(el('focus-distance').value);
   dof.focusRange=Math.max(0.1,dof.focusDistance*0.17);
@@ -48,11 +51,11 @@ function applyDOF(){
 for(const id of ['dof-on','auto-focus','focus-distance','blur-radius']){
   el(id).addEventListener('input',applyDOF);
 }
+// Inspect the actual depth pass, including trees, instead of rendering the proxy in color.
 el('proxy-debug').onchange=()=>{
-  for(const instance of state.depthParts) {
-    if(el('proxy-debug').checked) instance.shaderPassMask|=(1<<pc.SHADER_FORWARD);
-    else instance.shaderPassMask&=~(1<<pc.SHADER_FORWARD);
-  }
+  if(!state.frame)return;
+  state.frame.debug=el('proxy-debug').checked?'depth':null;
+  state.frame.update();
 };
 el('reset-player').onclick=()=>{
   if(!state.player)return;
@@ -71,8 +74,12 @@ el('download-diagnostics').onclick=()=>download('lab5-test-diagnostics.json',JSO
   engine:pc.version,href:location.href,splat:state.splatAsset?.file?.url||null,
   splatLoaded:!!state.splat?.gsplat?.asset,physics:state.physics,
   rigidbodies:state.app?.root?.findComponents('rigidbody')?.length||0,
-  depthProxyParts:state.depthParts.length,dof:!!state.frame?.dof?.enabled,
-  annotations:state.annotations.length,fps:Math.round(state.app?.stats?.frame?.fps||0)
+  depthProxyParts:state.depthParts.length,nativeSplatDepth:state.nativeSplatDepth,
+  sceneDepthWrite:!!state.app?.scene?.gsplat?.sceneDepthWrite,
+  sceneDepthMapPrepass:!!state.frame?.rendering?.sceneDepthMap,
+  dof:!!state.frame?.dof?.enabled,focusDistance:state.frame?.dof?.focusDistance,
+  annotations:state.annotations.length,interaction:worldNotes.diagnostics(),
+  fps:Math.round(state.app?.stats?.frame?.fps||0)
 },null,2));
 
 async function fetchConfig(){
@@ -143,7 +150,10 @@ function createCameraFrame(cfg){
   const frame=new pc.CameraFrame(state.app,state.camera.camera);
   frame.rendering.toneMapping=pc.TONEMAP_ACES;
   frame.rendering.samples=1;
-  frame.rendering.sceneDepthMap=true;
+  // The native splat scene-depth path requires no depth prepass and no MSAA.
+  // Only fallback devices need the old proxy-geometry depth prepass.
+  frame.rendering.sceneDepthMap=!state.nativeSplatDepth;
+  state.app.scene.gsplat.sceneDepthWrite=state.nativeSplatDepth;
   frame.dof.nearBlur=true;
   frame.dof.highQuality=true;
   frame.dof.blurRings=cfg.dof.blurRings||4;
@@ -159,99 +169,47 @@ function hitAhead(maxDistance=100){
   return state.app.systems.rigidbody.raycastFirst(rayFrom,rayTo);
 }
 let smoothFocus=5;
+let lastWarn=0;
 function autoFocus(delta){
-  if(!state.frame||!el('dof-on').checked||!el('auto-focus').checked)return;
-  const hit=hitAhead(100);
-  if(!hit?.point)return;
-  const distance=state.camera.getPosition().distance(hit.point);
-  smoothFocus+=(distance-smoothFocus)*(1-Math.exp(-delta/0.15));
+  if(!state.frame||!state.frame.dof.enabled||!el('auto-focus').checked)return;
+  state.focusTick-=delta;
+  if(state.picker&&!state.focusPending&&state.focusTick<=0){
+    state.focusTick=0.35;
+    state.focusPending=true;
+    try{
+      const world=state.app.scene.layers.getLayerByName('World');
+      state.picker.prepare(state.camera.camera,state.app.scene,[world]);
+      state.picker.getWorldPointAsync(16,16).then(point=>{
+        if(point&&Number.isFinite(point.x)){
+          const distance=state.camera.getPosition().distance(point);
+          if(distance>0.25&&distance<state.config.camera.farClip){
+            state.targetFocus=distance;
+            state.lastFocusPick=performance.now();
+          }
+        }
+      }).catch(error=>{
+        if(performance.now()-lastWarn>5000){console.warn('[Lab5] Splat focus picker:',error);lastWarn=performance.now();}
+      }).finally(()=>{state.focusPending=false;});
+    }catch(error){
+      console.warn('[Lab5] Splat focus picker unavailable, using physics ray',error);
+      state.focusPending=false;
+      state.picker?.destroy();
+      state.picker=null;
+    }
+  }
+  if(!state.lastFocusPick||performance.now()-state.lastFocusPick>1300){
+    const hit=hitAhead(100);
+    if(hit?.point)state.targetFocus=state.camera.getPosition().distance(hit.point);
+  }
+  const destination=Number.isFinite(state.targetFocus)?Math.max(0.5,state.targetFocus):5;
+  smoothFocus+=(destination-smoothFocus)*(1-Math.exp(-delta/0.2));
   state.frame.dof.focusDistance=smoothFocus;
-  state.frame.dof.focusRange=Math.max(0.08,smoothFocus*0.18);
-  state.frame.update();
+  state.frame.dof.focusRange=Math.max(0.2,smoothFocus*0.2);
   el('focus-value').textContent=smoothFocus.toFixed(1)+' m (auto)';
 }
 
-function noteMarker(note,index){
-  let button=buttons.get(note.id);
-  if(button)return button;
-  button=document.createElement('button');button.type='button';button.className='hotspot';
-  button.textContent=String(index+1);button.title=note.title;
-  button.onclick=e=>{
-    e.stopPropagation();
-    if(document.pointerLockElement)document.exitPointerLock();
-    el('tooltip-title').textContent=note.title;
-    el('tooltip-text').textContent=note.text;
-    el('tooltip').hidden=false;
-  };
-  buttons.set(note.id,button);el('hotspots').appendChild(button);
-  return button;
-}
-const projected=new pc.Vec3();
-function renderMarkers(){
-  if(!state.camera)return;
-  const w=canvas.clientWidth,h=canvas.clientHeight;
-  const gw=state.app.graphicsDevice.width,gh=state.app.graphicsDevice.height;
-  const pos=state.camera.getPosition(), forward=state.camera.forward;
-  const active=new Set();
-  for(let i=0;i<state.annotations.length;i++){
-    const note=state.annotations[i],button=noteMarker(note,i);
-    button.title=note.title;button.textContent=String(i+1);
-    projected.set(...note.position);
-    const visible=projected.clone().sub(pos).dot(forward)>0.05;
-    const s=state.camera.camera.worldToScreen(projected);
-    const x=s.x*w/Math.max(1,gw),y=s.y*h/Math.max(1,gh);
-    button.hidden=!visible||x<15||y<15||x>w-15||y>h-15;
-    if(!button.hidden){button.style.left=x+'px';button.style.top=y+'px';}
-    active.add(note.id);
-  }
-  for(const [id,button] of buttons)if(!active.has(id)){button.remove();buttons.delete(id);}
-}
-function listNotes(){
-  const list=el('notes-list');list.replaceChildren();
-  state.annotations.forEach((note,index)=>{
-    const b=document.createElement('button');b.type='button';b.className=state.selected===note.id?'active':'';
-    b.textContent=(index+1)+'. '+note.title;
-    b.onclick=()=>selectNote(note.id);list.appendChild(b);
-  });
-}
-function selectNote(id){
-  const note=state.annotations.find(item=>item.id===id);
-  if(!note)return;
-  state.selected=id;el('note-editor').hidden=false;
-  el('note-title').value=note.title;el('note-text').value=note.text;
-  listNotes();
-}
-async function fetchNotes(cfg){
-  const res=await fetch(cfg.annotationsUrl,{cache:'no-store'});
-  if(!res.ok){console.warn('Annotations unavailable',res.status);state.annotations=[];}
-  else {
-    const data=await res.json();
-    state.annotations=Array.isArray(data)?data.filter(note=>Array.isArray(note.position)&&note.position.length===3).map((n,i)=>({
-      id:String(n.id||'note-'+i),position:n.position.map(Number),
-      title:String(n.title||'Annotation '+(i+1)),text:String(n.text||'')
-    })):[];
-  }
-  listNotes();
-}
-el('place-note').onclick=()=>{
-  if(!state.camera)return;
-  const hit=hitAhead(25);
-  const p=hit?.point?hit.point:state.camera.getPosition().clone().add(state.camera.forward.clone().mulScalar(3));
-  const note={id:'note-'+Date.now(),position:[p.x,p.y,p.z],title:'New annotation',text:'Edit this description.'};
-  state.annotations.push(note);selectNote(note.id);
-  report('Annotation placed. Save and download JSON to persist it.','ok');
-};
-el('save-note').onclick=()=>{
-  const note=state.annotations.find(n=>n.id===state.selected);
-  if(!note)return;
-  note.title=el('note-title').value.trim()||'Untitled annotation';
-  note.text=el('note-text').value;listNotes();report('Annotation updated. Export JSON to save it.','ok');
-};
-el('delete-note').onclick=()=>{
-  state.annotations=state.annotations.filter(n=>n.id!==state.selected);
-  state.selected=null;el('note-editor').hidden=true;listNotes();
-};
-el('export-notes').onclick=()=>download('annotations.json',JSON.stringify(state.annotations,null,2)+'\n');
+// Keep authoring controls but move game interactions to dedicated PlayCanvas trigger module.
+const worldNotes=createWorldAnnotations({pc,state,canvas,el,hitAhead,report,download});
 
 async function changeSplat(url,cfg,contents=null){
   report('Loading Gaussian splat…');
@@ -272,13 +230,13 @@ el('local-splat').onchange=async e=>{
   try{
     const data=await file.arrayBuffer();
     await changeSplat('./preview-'+Date.now()+'.'+extension,state.config.splat,data);
-    el('dof-on').checked=false;applyDOF();
+    state.previewSplat=true;el('dof-on').checked=false;applyDOF();
     report('Previewing '+file.name+'. Old colliders still belong to Sunnyvale. Depth of field disabled.','ok');
   }catch(err){report('Preview failed: '+err.message,'error');}
   e.target.value='';
 };
 el('reset-splat').onclick=async()=>{
-  try{await changeSplat(state.config.splat.url,state.config.splat);el('dof-on').checked=state.config.dof.enabled;applyDOF();}
+  try{await changeSplat(state.config.splat.url,state.config.splat);state.previewSplat=false;el('dof-on').checked=state.config.dof.enabled;applyDOF();}
   catch(err){report(err.message,'error');}
 };
 
@@ -316,10 +274,14 @@ async function start(){
     window.addEventListener('resize',()=>app.resizeCanvas());
     app.start();app.systems.rigidbody.gravity.set(0,-10,0);
     app.scene.gsplat.splatBudget=(window.innerWidth<700?1:3)*1000000;
+    state.nativeSplatDepth=typeof pc.CameraFrame.isSplatSceneDepthSupported==='function'
+      &&pc.CameraFrame.isSplatSceneDepthSupported(device);
+    app.scene.gsplat.sceneDepthWrite=state.nativeSplatDepth;
+    app.scene.gsplat.enableIds=true;
     report('Loading Sunnyvale sample SOG and collision/depth meshes…');
     const [splat,depth,collision]=await Promise.all([
       loadAsset('Sample splat','gsplat',cfg.splat.url),
-      loadAsset('Depth GLB','container',cfg.depthMesh?.url,false),
+      state.nativeSplatDepth?Promise.resolve(null):loadAsset('Depth GLB','container',cfg.depthMesh?.url,false),
       loadAsset('Collision GLB','container',cfg.collisionMesh?.url,false)
     ]);
     addDepth(depth,cfg.depthMesh);
@@ -329,12 +291,17 @@ async function start(){
     splatRoot.addComponent('gsplat',{asset:splat});
     transform(splatRoot,cfg.splat);app.root.addChild(splatRoot);
     state.splat=splatRoot;state.splatAsset=splat;
-    smoothFocus=cfg.dof.focusDistance;
-    await fetchNotes(cfg);
-    app.on('update',dt=>{autoFocus(dt);renderMarkers();});
-    window.lab5={app,state,config:cfg};
-    report('Walkthrough loaded: '+(collision?'collision':'NO COLLISION')+' · '+(depth?'depth of field':'NO DEPTH PROXY')+' · '+state.annotations.length+' annotation(s).','ok');
-    if(!collision||!depth)console.warn('[Lab5] A sample GLB was unavailable. Check DevTools network requests.');
+    smoothFocus=cfg.dof.focusDistance;state.targetFocus=smoothFocus;
+    try{state.picker=new pc.Picker(app,32,32,true);}catch(error){console.warn('[Lab5] Splat focus picker unavailable',error);}
+    await worldNotes.load(cfg);
+    app.on('update',dt=>{autoFocus(dt);worldNotes.update();});
+    window.lab5={app,state,config:cfg,worldNotes};
+    report('Walkthrough loaded: '+(collision?'collision':'NO COLLISION')+' · '+
+      (state.nativeSplatDepth?'native splat depth':depth?'proxy depth':'NO DEPTH')+
+      ' · '+state.annotations.length+' game trigger(s).','ok');
+    if(!collision||(!state.nativeSplatDepth&&!depth))
+      console.warn('[Lab5] Collider or fallback proxy unavailable; check Network.');
+    if(!state.nativeSplatDepth)console.warn('[Lab5] Native splat scene depth unsupported: using GLB proxy fallback.');
   }catch(err){
     console.error('[Lab5] Startup error',err);
     report('Startup failed: '+(err?.message||err)+'. Check browser DevTools Console and Network.','error');
