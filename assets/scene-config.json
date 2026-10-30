@@ -1,0 +1,87 @@
+{
+  "projectName": "Lab5 · Splat Walkthrough",
+  "splat": {
+    "url": "https://code.playcanvas.com/examples_data/example_sunnyvale/sunnyvale.sog",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      180
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  "depthMesh": {
+    "url": "https://code.playcanvas.com/examples_data/example_sunnyvale/sunnyvale.glb",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      180
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  "collisionMesh": {
+    "url": "https://code.playcanvas.com/examples_data/example_sunnyvale/sunnyvale.glb",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      180
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  "spawn": {
+    "position": [
+      0,
+      2,
+      0
+    ],
+    "eyeHeight": 0.9,
+    "pitch": 0,
+    "yaw": 0
+  },
+  "camera": {
+    "fov": 75,
+    "farClip": 1000
+  },
+  "walk": {
+    "speedGround": 45,
+    "sprintMult": 1.5,
+    "jumpForce": 420,
+    "radius": 0.36,
+    "height": 1.8
+  },
+  "dof": {
+    "enabled": true,
+    "autofocus": true,
+    "focusDistance": 5,
+    "blurRadius": 5,
+    "blurRings": 4,
+    "blurRingPoints": 5
+  },
+  "annotationsUrl": "./assets/annotations.json"
+}

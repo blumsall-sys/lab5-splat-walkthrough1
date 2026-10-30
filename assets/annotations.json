@@ -1,0 +1,12 @@
+[
+  {
+    "id": "welcome",
+    "position": [
+      0,
+      2,
+      -3
+    ],
+    "title": "Welcome to the walkthrough",
+    "text": "This is a sample annotation. Use the Annotations panel to place and edit your own hotspots, then download JSON and commit it to GitHub."
+  }
+]

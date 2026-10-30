@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Lab5 · Splat Walkthrough</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    {"imports": {
+      "playcanvas": "https://cdn.jsdelivr.net/npm/playcanvas@2.23.3/+esm",
+      "playcanvas/": "https://cdn.jsdelivr.net/npm/playcanvas@2.23.3/"
+    }}
+  </script>
+</head>
+<body>
+  <canvas id="application-canvas" aria-label="3D walkthrough"></canvas>
+  <div id="topbar">
+    <div class="brand"><span class="brand-square">L5</span><div><strong id="site-title">Splat Walkthrough</strong><small>PLAYCANVAS · GITHUB PAGES</small></div></div>
+    <div class="top-actions">
+      <button id="help-btn" type="button">Controls</button>
+      <button id="settings-btn" type="button">Settings</button>
+      <button id="notes-btn" type="button">Annotations</button>
+    </div>
+  </div>
+  <div id="status" role="status" aria-live="polite">Starting PlayCanvas…</div>
+  <div id="crosshair" aria-hidden="true"></div>
+  <div id="hotspots" aria-label="Scene annotations"></div>
+  <div id="tooltip" hidden><div class="tooltip-heading"><strong id="tooltip-title"></strong><button type="button" id="tooltip-close" aria-label="Close">×</button></div><p id="tooltip-text"></p></div>
+  <div id="bottom-hint">CLICK SCENE TO LOOK AROUND · WASD MOVE · SPACE JUMP · SHIFT SPRINT · ESC RELEASE MOUSE</div>
+  <div class="shade" id="shade" hidden></div>
+  <aside id="panel" aria-label="Walkthrough settings" hidden>
+    <header><h2 id="panel-title">Settings</h2><button id="panel-close" aria-label="Close" type="button">×</button></header>
+    <section id="settings-panel">
+      <p class="help-text">Preview a bundled .sog or Gaussian .ply in this browser. This local preview does not upload your file anywhere. To publish it, place the file inside the repository's assets folder and update <code>assets/scene-config.json</code>.</p>
+      <label class="button-file">Preview local splat <input type="file" id="local-splat" accept=".sog,.ply" hidden></label>
+      <button type="button" id="reset-splat" class="secondary">Reload published splat</button>
+      <hr>
+      <label class="check"><input type="checkbox" id="dof-on" checked> Depth of field</label>
+      <label class="check"><input type="checkbox" id="auto-focus" checked> Autofocus (centre reticle)</label>
+      <label>Focus distance <output id="focus-value">5.0 m</output><input type="range" id="focus-distance" min="0.5" max="40" step="0.1" value="5"></label>
+      <label>Blur radius <output id="blur-value">5</output><input type="range" id="blur-radius" min="0" max="12" step="1" value="5"></label>
+      <label class="check"><input type="checkbox" id="proxy-debug"> Show depth proxy (debug)</label>
+      <hr>
+      <button type="button" id="reset-player" class="secondary">Return to start</button>
+      <button type="button" id="download-diagnostics" class="secondary">Download test diagnostics</button>
+      <p class="help-text">A depth proxy is required for accurate depth of field. After loading an unrelated splat, disable DoF until you supply its matching proxy mesh.</p>
+    </section>
+    <section id="notes-panel" hidden>
+      <p class="help-text">Annotations are editable in-browser. Use “Place annotation” to position a hotspot straight ahead at the nearest collision hit. Download JSON after editing and copy it to <code>assets/annotations.json</code> before publishing.</p>
+      <button type="button" id="place-note">Place annotation at crosshair</button>
+      <div id="note-editor" hidden>
+        <label>Title <input id="note-title" type="text" maxlength="90"></label>
+        <label>Description <textarea id="note-text" rows="4" maxlength="1600"></textarea></label>
+        <div class="button-row"><button id="save-note" type="button">Save</button><button id="delete-note" type="button" class="danger">Delete</button></div>
+      </div>
+      <div id="notes-list"></div>
+      <button id="export-notes" type="button" class="secondary">Download annotations.json</button>
+    </section>
+    <section id="help-panel" hidden>
+      <h3>Desktop</h3><p>Click the 3D scene to lock the mouse. WASD walks, mouse looks, Shift sprints, Space jumps, and Esc unlocks the pointer. Click a hotspot to read it.</p>
+      <h3>Mobile</h3><p>Use the two on-screen touch zones: left side to move, right side to look. Tap a hotspot to open its description. Mobile input comes from PlayCanvas's first-person controller.</p>
+      <h3>Authoring</h3><p>Export your SuperSplat to SOG. For accurate collision and autofocus, create matching proxy / collider GLBs in Blender with the included addon.</p>
+      <p class="help-text">The default scene uses Sunnyvale Heritage Park Museum by zeitgeistarchivescans (CC BY 4.0). The sample splat and geometry load from PlayCanvas servers until you replace them. <a href="https://superspl.at/scene/d5d397aa" target="_blank" rel="noreferrer">Sample source and attribution</a>.</p>
+    </section>
+  </aside>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
