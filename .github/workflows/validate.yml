@@ -14,4 +14,7 @@ jobs:
       - run: python scripts/check_project.py
       - run: node --check main.js
       - run: node --check world-annotations.js
+      - run: node --check focus-controller.js
+      - run: node --check mobile-controls.js
+      - run: node --check performance-controller.js
       - run: python -m py_compile blender-addon/lab5_splat_walkthrough_exporter.py
