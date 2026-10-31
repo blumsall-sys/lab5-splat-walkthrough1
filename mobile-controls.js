@@ -14,29 +14,35 @@ export function createMobileControls({pc,state,el,report}) {
   let fpsSmoothing = 60;
   let lastSample = 0;
   let force = 0;
+  // Keep both on-screen bases pinned inside their own touch-friendly zones.
+  // The engine still interprets gestures on each half of the canvas, but
+  // visualization never follows a finger into the right-hand button rail.
   function setJoystick(side,bx,by,sx,sy) {
     if(!enabled)return;
     const j=shells[side];
-    if(bx < 0 || by < 0) {
+    if(bx < 0 || by < 0){
       j.base.classList.remove('moving');
-      j.base.style.removeProperty('--jx');
-      j.base.style.removeProperty('--jy');
       j.stick.style.transform='translate(-50%,-50%)';
       return;
     }
     j.base.classList.add('moving');
-    j.base.style.setProperty('--jx',bx+'px');
-    j.base.style.setProperty('--jy',by+'px');
-    const radius=56;
-    const x=Math.max(-radius,Math.min(radius,sx-bx));
-    const y=Math.max(-radius,Math.min(radius,sy-by));
+    const radius=side==='right'?38:42;
+    const dx=sx-bx,dy=sy-by;
+    const length=Math.hypot(dx,dy);
+    const factor=length>radius?radius/length:1;
+    const x=Math.round(dx*factor),y=Math.round(dy*factor);
     j.stick.style.transform='translate(calc(-50% + '+x+'px),calc(-50% + '+y+'px))';
   }
   function toggle(enabledNow) {
     enabled=enabledNow;
     hud.hidden=!enabled;
     el('mobile-focus').hidden=!enabled;
-    if(!enabled)for(const side of ['left','right'])setJoystick(side,-1,-1,-1,-1);
+    if(!enabled){
+      for(const j of Object.values(shells)){
+        j.base.classList.remove('moving');
+        j.stick.style.transform='translate(-50%,-50%)';
+      }
+    }
     // Explicitly opt into joysticks on both halves; default controller is joystick-touch.
     if(state.controller?._mobileInput)state.controller._mobileInput.layout=enabled?'joystick-joystick':'joystick-touch';
   }
