@@ -91,7 +91,16 @@ export function createFocusController({pc,state,el,canvas,report,hitAhead}) {
     if (!state.frame) return;
     state.frame.dof.focusDistance = current;
     state.frame.dof.focusRange = Math.max(.2,current*.18);
-    // Distance uniforms are read every frame; do not rebuild CameraFrame here.
+    // CameraFrame stores config separately from the active render pass. Copy focal
+    // parameters into the pass directly on frame updates to avoid rebuilding its pipeline.
+    const pass = state.frame.renderPassCamera?.dofPass;
+    if (pass) {
+      pass.focusDistance = state.frame.dof.focusDistance;
+      pass.focusRange = state.frame.dof.focusRange;
+    } else if (state.frame.dof.enabled) {
+      // In case of a camera-frame implementation without a public dofPass.
+      state.frame.update();
+    }
     showDistance();
   }
 
