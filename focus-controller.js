@@ -57,8 +57,9 @@ export function createFocusController({pc,state,el,canvas,report,hitAhead}) {
     mode = ['auto','tap','manual'].includes(value) ? value : 'auto';
     modeSelect.value = mode;
     distanceSlider.disabled = mode !== 'manual';
-    el('tap-focus-scene').disabled = mode === 'manual';
-    el('tap-focus-center').disabled = mode === 'manual';
+    // Focus buttons can always switch Manual/Auto to one-shot Tap Lock.
+    el('tap-focus-scene').disabled = false;
+    el('tap-focus-center').disabled = false;
     if (mode === 'manual') {
       target = current = clampDistance(Number(distanceSlider.value)||current);
       armed = false;
@@ -193,7 +194,7 @@ export function createFocusController({pc,state,el,canvas,report,hitAhead}) {
   }
 
   async function focusCenter() {
-    if (!state.camera || mode==='manual') return;
+    if (!state.camera) return;
     modeChanged('tap',true);
     const r=canvas.getBoundingClientRect();
     const ok=await sample(r.left+r.width/2,r.top+r.height/2,true);
