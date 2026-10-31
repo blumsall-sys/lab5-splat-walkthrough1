@@ -78,8 +78,13 @@ export function createFocusController({pc,state,el,canvas,report,hitAhead}) {
   }
 
   function initialize(config) {
-    picker = new pc.Picker(state.app,pickerSize,pickerSize,true);
-    state.picker = picker;
+    try {
+      picker = new pc.Picker(state.app,pickerSize,pickerSize,true);
+      state.picker = picker;
+    } catch(error) {
+      picker = null;state.picker=null;
+      console.warn('[Lab5] GPU depth picker unavailable. Manual focus remains functional.',error);
+    }
     mode = config?.dof?.mode ?? (config?.dof?.autofocus ? 'auto' : 'manual');
     current = clampDistance(Number(config?.dof?.focusDistance)||5);
     target = current;
@@ -201,7 +206,15 @@ export function createFocusController({pc,state,el,canvas,report,hitAhead}) {
     else modeChanged('tap',true);
     armed=!armed;
     el('tap-focus-scene').classList.toggle('active',armed);
-    message(armed?'Focus scene armed — click or tap a visible surface':'Focus scene cancelled');
+    if(armed){
+      // Let the next click reach the canvas instead of the Settings shade.
+      el('panel').hidden=true;
+      el('shade').hidden=true;
+      message('Tap a surface in the scene to lock focus');
+      report('Tap any visible splat surface to lock focus','ok');
+    } else {
+      message('Focus scene cancelled');
+    }
   }
   function onPointerDown(e) {
     if(!armed || e.target!==canvas) return;
