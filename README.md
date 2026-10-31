@@ -159,3 +159,30 @@ depth for the whole scan on supported devices. Download diagnostics to confirm
 **Test**: From the sample spawn, move toward the numbered marker until the
 interaction prompt appears. In automatic mode the popup opens in-world.
 Press E without releasing pointer lock to close, and press E again to reopen.
+
+\n## Focus, rendering and mobile controls — v1.3
+\n**Focus** has three independent modes: Auto, Tap Lock, and Manual. Auto samples a low-resolution
+GPU depth picker across a configurable crosshair region (1, 5 or 9 samples). It uses the
+median of inlier forward-axis distances, rejects unstable large jumps, updates less frequently
+on mobile, and smooths display focus. Missing depth holds focus rather than jumping to
+a ground collider unless you explicitly enable physics fallback.
+\n**Tap Lock** measures once at the centre (also the R key or mobile Focus button) or lets
+you arm a click/tap on the visible splat. **Manual** is a fixed focus distance 0.5–250 metres
+and does not run GPU picking. For testing, enable Show scene depth to inspect DoF,
+and use the diagnostics file to inspect focus sampling statistics and last hit counts.
+\n**Performance**: PlayCanvas performs native camera frustum checks; the global Gaussian
+splat budget is set by quality profile. Dynamic resolution, foveation, small-splat
+contribution thresholds and DoF quality change by profile, with conservative
+two-second FPS-based adaptation. For a single flat .sog file, you cannot frustum-cull
+individual splats as independently streamable tiles, nor will changing the global
+budget guarantee a specific visible splat count. True hierarchical LOD/streaming
+requires a matching octree/LOD format export. Invisible collision entities remain
+in the physics world: frustum-culling physics would be unsafe.
+\n**Mobile**: PlayCanvas FirstPersonController remains responsible for movement and
+camera input. Both touch halves are configured as joystick sources, with visible
+Move/Look bases and sticks following the controller's own emitted positions. Jump,
+Sprint, Interact and Focus are standalone buttons. Use a landscape orientation
+for the clearest controls. Native desktop pointer-lock works unchanged.
+\n**Limitations**: Transparent splat point picking is an approximate front surface;
+autofocus and post-process DoF need not produce identical depth at low-opacity
+branches. GPU memory pressure and browser thermal throttling vary by device.

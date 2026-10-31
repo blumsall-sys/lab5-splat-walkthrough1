@@ -28,7 +28,19 @@
   <div id="interaction-prompt" role="status" aria-live="polite" hidden></div>
   <button id="interact-btn" type="button" aria-label="Interact with nearby annotation" hidden>Interact</button>
   <div id="tooltip" hidden><div class="tooltip-heading"><strong id="tooltip-title"></strong><button type="button" id="tooltip-close" aria-label="Close">×</button></div><p id="tooltip-text"></p></div>
-  <div id="bottom-hint">CLICK SCENE TO LOOK AROUND · WASD MOVE · SPACE JUMP · SHIFT SPRINT · ESC RELEASE MOUSE</div>
+  <div id="bottom-hint">WASD MOVE · MOUSE LOOK · E/F INTERACT · R LOCK RETICLE FOCUS · ESC RELEASE MOUSE</div>
+  <div id="render-stats" class="performance-badge" aria-live="off">Loading renderer…</div>
+  <div id="mobile-stats" class="mobile-performance" hidden></div>
+  <div id="mobile-hud" class="mobile-hud" hidden>
+    <div id="joystick-left" class="joy-base joy-left"><span class="joy-ring"></span><span id="joystick-left-stick" class="joy-stick"></span><span id="joystick-left-hint" class="joy-caption">MOVE</span></div>
+    <div id="joystick-right" class="joy-base joy-right"><span class="joy-ring"></span><span id="joystick-right-stick" class="joy-stick"></span><span id="joystick-right-hint" class="joy-caption">LOOK</span></div>
+    <div class="mobile-actions">
+      <button id="mobile-focus" type="button" title="Focus reticle" aria-label="Lock focus to reticle"><span>◎</span>Focus</button>
+      <button id="mobile-sprint" type="button" title="Sprint toggle" aria-pressed="false">Sprint</button>
+      <button id="mobile-jump" type="button" title="Jump">Jump</button>
+      <button id="mobile-interact" type="button" title="Interact with nearby 3D annotation">Interact</button>
+    </div>
+  </div>
   <div class="shade" id="shade" hidden></div>
   <aside id="panel" aria-label="Walkthrough settings" hidden>
     <header><h2 id="panel-title">Settings</h2><button id="panel-close" aria-label="Close" type="button">×</button></header>
@@ -38,14 +50,43 @@
       <button type="button" id="reset-splat" class="secondary">Reload published splat</button>
       <hr>
       <label class="check"><input type="checkbox" id="dof-on" checked> Depth of field</label>
-      <label class="check"><input type="checkbox" id="auto-focus" checked> Autofocus (centre reticle)</label>
-      <label>Focus distance <output id="focus-value">5.0 m</output><input type="range" id="focus-distance" min="0.5" max="40" step="0.1" value="5"></label>
-      <label>Blur radius <output id="blur-value">5</output><input type="range" id="blur-radius" min="0" max="12" step="1" value="5"></label>
+      <label>Focus mode
+        <select id="focus-mode">
+          <option value="auto">Auto — stable multi-point reticle sampling</option>
+          <option value="tap">Tap lock — hold a chosen distance</option>
+          <option value="manual">Manual — fixed focus distance</option>
+        </select>
+      </label>
+      <div class="button-row focus-buttons">
+        <button id="tap-focus-center" type="button">◎ Focus centre (R)</button>
+        <button id="tap-focus-scene" type="button">Focus scene — click / tap point</button>
+      </div>
+      <label>Focus distance <output id="focus-value">5.0 m</output><input type="range" id="focus-distance" min="0.5" max="250" step="0.1" value="5"></label>
+      <label>Sample radius <output id="focus-radius-value">1.5%</output><input type="range" id="focus-radius" min="0" max="6" step="0.5" value="1.5"></label>
+      <label>Depth samples per pick
+        <select id="focus-samples"><option value="1">1 — fastest</option><option value="5" selected>5 — recommended</option><option value="9">9 — detailed (desktop)</option></select>
+      </label>
+      <label class="check"><input type="checkbox" id="focus-physics"> Use collision raycast when splat has no depth</label>
+      <p id="focus-status" class="help-text">Waiting for depth sample</p>
+      <label>Blur radius <output id="blur-value">3</output><input type="range" id="blur-radius" min="0" max="12" step="1" value="3"></label>
+      <hr>
+      <h3>Rendering & performance</h3>
+      <label>Quality profile
+        <select id="quality-preset">
+          <option value="low">Low — mobile & older devices</option>
+          <option value="balanced">Balanced</option>
+          <option value="high">High — desktops</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="adaptive-quality" checked> Adapt rendering quality to frame rate</label>
+      <label class="check"><input type="checkbox" id="show-stats" checked> Show FPS and rendering settings</label>
+      <p id="perf-readout" class="help-text">Waiting for renderer…</p>
+      <p class="help-text">Native frustum culling and device-dependent splat budgets run in PlayCanvas. LOD streaming and regional culling require a compatible multi-LOD SOG/octetree asset; a single flat SOG does not contain independent chunks to stream.</p>
       <label class="check"><input type="checkbox" id="proxy-debug"> Show scene depth (debug)</label>
       <hr>
       <button type="button" id="reset-player" class="secondary">Return to start</button>
       <button type="button" id="download-diagnostics" class="secondary">Download test diagnostics</button>
-      <p class="help-text">On supported GPUs, native Gaussian-splat scene depth includes buildings, trees and the ground. Other GPUs fall back to the hidden GLB depth proxy. Toggle Show scene depth to inspect exactly what the focus effect sees. Local splat previews disable DoF until the collision/depth matches the new scene.</p>
+      <p class="help-text">The depth-of-field shader uses the scene-depth texture where supported. Focus sampling uses a separate GPU splat picker, and can differ at mixed transparent geometry. Manual and Tap Lock modes prevent changing focus during movement. On unsupported devices a hidden GLB proxy supplies depth; local splat previews still disable DoF until a matching scene is loaded.</p>
     </section>
     <section id="notes-panel" hidden>
       <p class="help-text">Annotations are invisible 3D sphere triggers, not clickable UI. Approach the marker to trigger a world-space popup, or choose Interact to require E/F or a gamepad/touch action. Use Place annotation to anchor a trigger to the nearest collider, then export JSON to <code>assets/annotations.json</code>.</p>
@@ -66,8 +107,8 @@
       <button id="export-notes" type="button" class="secondary">Download annotations.json</button>
     </section>
     <section id="help-panel" hidden>
-      <h3>Desktop</h3><p>Click the 3D scene to lock the mouse. WASD moves, mouse looks, Shift sprints, Space jumps. Walk inside an annotation's invisible sphere. Automatic annotations open on approach; manual ones show an E/F interact prompt. E/F can also close an annotation without unlocking the mouse. Esc unlocks the pointer.</p>
-      <h3>Mobile</h3><p>Use the two on-screen touch zones: left to move, right to look. Enter a trigger sphere and tap the Interact button to open/close the popup. Gamepad X (button 2) also interacts. You no longer need to click an annotation hotspot.</p>
+      <h3>Desktop</h3><p>Click the scene for pointer lock. WASD walks, mouse looks, Shift sprints, Space jumps. E/F interacts within a 3D trigger. Press R to measure and lock focus at the reticle; or select Auto, Tap Lock, or Manual in Settings. Esc releases pointer lock.</p>
+      <h3>Mobile</h3><p>Visible left MOVE and right LOOK joysticks follow your touches. Buttons: Jump, Sprint, Interact near a 3D marker, and Focus to lock onto the reticle. Focus scene in Settings also allows selecting an arbitrary splat surface.</p>
       <h3>Authoring</h3><p>Export SuperSplat to SOG. The splat itself supplies full-scene DoF depth on supported devices. Make a separate static collision GLB for walking, and optionally a depth-only proxy for device fallback. The Blender add-on exports sphere trigger radii and activation modes.</p>
       <p class="help-text">The default scene uses Sunnyvale Heritage Park Museum by zeitgeistarchivescans (CC BY 4.0). The sample splat and geometry load from PlayCanvas servers until you replace them. <a href="https://superspl.at/scene/d5d397aa" target="_blank" rel="noreferrer">Sample source and attribution</a>.</p>
     </section>

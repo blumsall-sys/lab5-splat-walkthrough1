@@ -2,7 +2,7 @@
 import json,sys
 from pathlib import Path
 base=Path(__file__).resolve().parents[1]
-required=['index.html','style.css','main.js','world-annotations.js','.nojekyll','assets/scene-config.json','assets/annotations.json','blender-addon/lab5_splat_walkthrough_exporter.py']
+required=['index.html','style.css','main.js','world-annotations.js','focus-controller.js','mobile-controls.js','performance-controller.js','.nojekyll','assets/scene-config.json','assets/annotations.json','blender-addon/lab5_splat_walkthrough_exporter.py']
 errors=[name for name in required if not (base/name).is_file()]
 try:
  c=json.loads((base/'assets/scene-config.json').read_text())

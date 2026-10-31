@@ -81,7 +81,14 @@
     "focusDistance": 5,
     "blurRadius": 3,
     "blurRings": 4,
-    "blurRingPoints": 5
+    "blurRingPoints": 5,
+    "mode": "auto",
+    "sampleRadiusPercent": 1.5,
+    "sampleCount": 5
   },
-  "annotationsUrl": "./assets/annotations.json"
+  "annotationsUrl": "./assets/annotations.json",
+  "performance": {
+    "profile": "balanced",
+    "adaptive": true
+  }
 }
