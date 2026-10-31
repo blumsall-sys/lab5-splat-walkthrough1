@@ -89,5 +89,20 @@ export function createMobileControls({pc,state,el,report}) {
       stats.textContent=Math.round(fpsSmoothing)+' FPS';
     }
   }
-  return {initialize,update,toggle,diagnostics:()=>({touch,enabled,fps:Math.round(fpsSmoothing),joystickLayout:state.controller?._mobileInput?.layout})};
+  function controlZones(){
+    if(!enabled)return {enabled:false};
+    const joy=shells.right.base.getBoundingClientRect();
+    const action=hud.querySelector('.mobile-actions').getBoundingClientRect();
+    const horizontalGap=Math.round(action.left-joy.right);
+    const overlapping=joy.left<action.right && joy.right>action.left &&
+      joy.top<action.bottom && joy.bottom>action.top;
+    return {enabled:true,overlapping,horizontalGapPx:horizontalGap,
+      joystick:{x:Math.round(joy.x),y:Math.round(joy.y),width:Math.round(joy.width),height:Math.round(joy.height)},
+      actions:{x:Math.round(action.x),y:Math.round(action.y),width:Math.round(action.width),height:Math.round(action.height)}};
+  }
+  return {initialize,update,toggle,diagnostics:()=>({
+    touch,enabled,fps:Math.round(fpsSmoothing),
+    joystickLayout:state.controller?._mobileInput?.layout,
+    controlZones:controlZones()
+  })};
 }
