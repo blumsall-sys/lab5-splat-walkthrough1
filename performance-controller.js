@@ -88,11 +88,14 @@ export function createPerformanceController({state,el,report}) {
     else{slowTicks=0;fastTicks=0;}
     if(slowTicks>=2){
       slowTicks=0;
-      set(preset==='high'?'balanced':'low');
+      const next=preset==='high'?'balanced':'low';
+      if(next!==preset) set(next);
     }
     if(fastTicks>=4){
       fastTicks=0;
-      set(preset==='low'?'balanced':'high');
+      // Do not continuously push mobile devices to High and overheat.
+      const next=preset==='low'?'balanced':mobile?'balanced':'high';
+      if(next!==preset) set(next);
     }
   }
   return {initialize,update,refresh:()=>set(preset),diagnostics:()=>({
