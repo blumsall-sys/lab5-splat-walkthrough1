@@ -108,10 +108,15 @@ export function createWorldAnnotations({ pc, state, canvas, el, hitAhead, report
     const forward = state.camera.forward;
     const seen = new Set();
 
+    const maxDistance = matchMedia('(pointer:coarse)').matches ? 40 : 90;
+    const distance2 = maxDistance * maxDistance;
     state.annotations.forEach((note, index) => {
-      const marker = markerFor(note, index);
       point.set(...note.position);
       const delta = point.clone().sub(eye);
+      // Culls annotation DOM projection before allocating markers: cheap spatial
+      // distance test plus camera-forward test. Physics triggers stay active.
+      if (delta.lengthSq() > distance2 || delta.dot(forward) <= 0.05) return;
+      const marker = markerFor(note, index);
       const s = state.camera.camera.worldToScreen(point);
       const x = s.x * width / gw;
       const y = s.y * height / gh;
