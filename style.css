@@ -64,3 +64,108 @@ button.secondary{background:#161e2c}button.danger{background:#4e2022}a{color:var
   .mobile-actions button{min-width:55px;min-height:35px;padding:4px}
   #interaction-prompt{bottom:130px}
 }
+
+
+/* v1.4: independent first-person touch control zones.
+   Landscape: joysticks stay in the lower corners of their canvas regions.
+   The 2 x 2 action cluster has an entirely separate rail at the right edge.
+   All action buttons retain a >=44px touch height. */
+@media (pointer:coarse) and (orientation:landscape) {
+  #mobile-hud .joy-base {
+    box-sizing:border-box;
+    width:96px;height:96px;
+    top:auto;bottom:calc(25px + env(safe-area-inset-bottom,0px));
+    transform:none;
+    pointer-events:none;
+  }
+  #mobile-hud #joystick-left,
+  #mobile-hud #joystick-left.moving {
+    left:calc(18px + env(safe-area-inset-left,0px));
+    right:auto;
+    top:auto;
+    bottom:calc(25px + env(safe-area-inset-bottom,0px));
+    transform:none;
+  }
+  #mobile-hud #joystick-right,
+  #mobile-hud #joystick-right.moving {
+    left:auto;
+    right:calc(167px + env(safe-area-inset-right,0px));
+    top:auto;
+    bottom:calc(25px + env(safe-area-inset-bottom,0px));
+    transform:none;
+  }
+  #mobile-hud .joy-stick {width:42px;height:42px}
+  #mobile-hud .joy-ring {inset:14px}
+  #mobile-hud .joy-caption {font-size:10px;bottom:-18px}
+  #mobile-hud .mobile-actions {
+    position:fixed;
+    right:calc(10px + env(safe-area-inset-right,0px));
+    bottom:calc(27px + env(safe-area-inset-bottom,0px));
+    left:auto;top:auto;
+    display:grid;
+    grid-template-columns:repeat(2,54px);
+    grid-template-rows:repeat(2,44px);
+    width:116px;height:96px;
+    gap:8px;
+    align-items:stretch;
+    justify-content:end;
+    pointer-events:none;
+  }
+  #mobile-hud .mobile-actions button {
+    box-sizing:border-box;
+    width:54px;height:44px;
+    min-width:0;min-height:0;
+    margin:0;padding:2px 3px;
+    border-radius:10px;
+    font-size:10px;
+    line-height:1.12;
+    white-space:nowrap;
+    touch-action:manipulation;
+  }
+  #mobile-hud .mobile-actions button span{display:none}
+  #mobile-hud .mobile-actions button:active{transform:scale(.96)}
+  #interaction-prompt{bottom:calc(5px + env(safe-area-inset-bottom,0px));}
+  #status{max-width:min(240px,30vw);bottom:calc(5px + env(safe-area-inset-bottom,0px))}
+}
+/* Tall portrait: park the action cluster ABOVE the look joystick, not on it. */
+@media (pointer:coarse) and (orientation:portrait) {
+  #mobile-hud .joy-base{
+    width:100px;height:100px;
+    top:auto;bottom:calc(50px + env(safe-area-inset-bottom,0px));
+    transform:none;
+    pointer-events:none;
+  }
+  #mobile-hud #joystick-left,
+  #mobile-hud #joystick-left.moving{
+    left:calc(16px + env(safe-area-inset-left,0px));
+    right:auto;top:auto;
+    bottom:calc(50px + env(safe-area-inset-bottom,0px));
+    transform:none;
+  }
+  #mobile-hud #joystick-right,
+  #mobile-hud #joystick-right.moving{
+    left:auto;right:calc(16px + env(safe-area-inset-right,0px));
+    top:auto;bottom:calc(50px + env(safe-area-inset-bottom,0px));
+    transform:none;
+  }
+  #mobile-hud .mobile-actions{
+    display:grid;
+    grid-template-columns:repeat(2,56px);
+    grid-template-rows:repeat(2,44px);
+    gap:8px;
+    left:auto;top:auto;
+    right:calc(12px + env(safe-area-inset-right,0px));
+    bottom:calc(210px + env(safe-area-inset-bottom,0px));
+    width:120px;height:96px;
+    pointer-events:none;
+  }
+  #mobile-hud .mobile-actions button{
+    box-sizing:border-box;
+    min-width:0;min-height:0;
+    width:56px;height:44px;
+    margin:0;padding:3px 2px;
+    font-size:10px;line-height:1.15;
+    white-space:nowrap;
+  }
+  #mobile-hud .mobile-actions button span{display:none}
+}
